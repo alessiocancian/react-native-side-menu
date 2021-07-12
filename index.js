@@ -32,6 +32,8 @@ type Props = {
   autoClosing: bool,
   allowOverlayPressPropagation: bool,
   overlayColor: string,
+  overlayOpacity: number,
+  animateOverlayOpacity: bool
 };
 
 type Event = {
@@ -103,7 +105,7 @@ export default class SideMenu extends React.PureComponent {
       left,
     };
 
-    this.state.left.addListener(({value}) => this.props.onSliding(Math.abs((value - this.state.hiddenMenuOffset) / (this.state.openMenuOffset - this.state.hiddenMenuOffset))));
+    this.state.left.addListener(({ value }) => this.props.onSliding(Math.abs((value - this.state.hiddenMenuOffset) / (this.state.openMenuOffset - this.state.hiddenMenuOffset))));
   }
 
   UNSAFE_componentWillMount(): void {
@@ -123,12 +125,12 @@ export default class SideMenu extends React.PureComponent {
   }
 
   getOverlayColor() {
-    if(this.props.allowOverlayPressPropagation) return this.props.overlayColor || "transparent"
+    if (this.props.allowOverlayPressPropagation) return this.props.overlayColor || 'transparent';
     // stopPropagation doesn't work with transparent background
-    if(!this.props.overlayColor || this.props.overlayColor == "transparent") {
-      return '#00000001'
+    if (!this.props.overlayColor || this.props.overlayColor == 'transparent') {
+      return '#00000001';
     }
-    return this.props.overlayColor
+    return this.props.overlayColor;
   }
 
   onLayoutChange(e: Event) {
@@ -143,22 +145,29 @@ export default class SideMenu extends React.PureComponent {
    * @return {React.Component}
    */
   getContentView() {
-    let overlay: React.Element<void, void> = null;
-
-    if (this.isOpen) {
-      overlay = (
-        <TouchableWithoutFeedback
-          onPress={(e) => {
-            if(!this.props.allowOverlayPressPropagation) {
-              e.stopPropagation()
-            }
-            this.openMenu(false)
-          }}
-        >
-          <View style={[styles.overlay, { backgroundColor: this.getOverlayColor() }]} />
-        </TouchableWithoutFeedback>
+    const overlayContainer: React.Element<void, void> = (
+      <TouchableWithoutFeedback
+        onPress={(e) => {
+          if (!this.props.allowOverlayPressPropagation) {
+            e.stopPropagation();
+          }
+          this.openMenu(false);
+        }}
+      >
+        <Animated.View
+          pointerEvents={this.isOpen ? 'auto' : 'none'}
+          style={[styles.overlay, {
+            backgroundColor: this.getOverlayColor(),
+            opacity: this.props.animateOverlayOpacity ? this.state.left.interpolate({
+              inputRange: [
+                this.state.hiddenMenuOffset,
+                this.state.openMenuOffset],
+              outputRange: [0, this.props.overlayOpacity],
+            }) : this.props.overlayOpacity,
+          }]}
+        />
+      </TouchableWithoutFeedback>
       );
-    }
 
     const { width, height } = this.state;
     const ref = sideMenu => (this.sideMenu = sideMenu);
@@ -171,7 +180,7 @@ export default class SideMenu extends React.PureComponent {
     return (
       <Animated.View style={style} ref={ref} {...this.responder.panHandlers}>
         {this.props.children}
-        {overlay}
+        {overlayContainer}
       </Animated.View>
     );
   }
@@ -323,4 +332,6 @@ SideMenu.defaultProps = {
   isOpen: false,
   bounceBackOnOverdraw: true,
   autoClosing: true,
+  overlayOpacity: 1,
+  animateOverlayOpacity: true,
 };
